@@ -4,7 +4,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -54,10 +61,13 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
       });
       onAuthSuccess(user);
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       toast({
         title: "Login failed",
-        description: error.message || "Please check your credentials and try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Please check your credentials and try again.",
         variant: "destructive",
       });
     },
@@ -77,10 +87,11 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
       });
       onAuthSuccess(user);
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       toast({
         title: "Registration failed",
-        description: error.message || "Please try again.",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     },
@@ -94,6 +105,11 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
     registerMutation.mutate(data);
   };
 
+  // Function to handle form toggle
+  const toggleForm = () => {
+    setIsLogin(!isLogin);
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -101,16 +117,18 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
           {isLogin ? "Welcome Back" : "Create Account"}
         </CardTitle>
         <CardDescription className="text-center">
-          {isLogin 
-            ? "Sign in to your account to continue" 
-            : "Create a new account to get started"
-          }
+          {isLogin
+            ? "Sign in to your account to continue"
+            : "Create a new account to get started"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {isLogin ? (
-          <Form {...loginForm}>
-            <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+          <Form {...loginForm} key="login-form">
+            <form
+              onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={loginForm.control}
                 name="email"
@@ -118,10 +136,11 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Enter your email" 
-                        {...field} 
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        autoComplete="email"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -135,19 +154,20 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Enter your password" 
-                        {...field} 
+                      <Input
+                        type="password"
+                        placeholder="Enter your password"
+                        autoComplete="current-password"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? "Signing in..." : "Sign In"}
@@ -155,8 +175,11 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
             </form>
           </Form>
         ) : (
-          <Form {...registerForm}>
-            <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+          <Form {...registerForm} key="register-form">
+            <form
+              onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={registerForm.control}
@@ -167,6 +190,7 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                       <FormControl>
                         <Input 
                           placeholder="First name" 
+                          autoComplete="given-name"
                           {...field} 
                         />
                       </FormControl>
@@ -183,6 +207,7 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                       <FormControl>
                         <Input 
                           placeholder="Last name" 
+                          autoComplete="family-name"
                           {...field} 
                         />
                       </FormControl>
@@ -198,10 +223,11 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Enter your email" 
-                        {...field} 
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        autoComplete="email"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -215,37 +241,39 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Choose a password" 
-                        {...field} 
+                      <Input
+                        type="password"
+                        placeholder="Choose a password"
+                        autoComplete="new-password"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={registerMutation.isPending}
               >
-                {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                {registerMutation.isPending
+                  ? "Creating account..."
+                  : "Create Account"}
               </Button>
             </form>
           </Form>
         )}
 
         <div className="text-center">
-          <Button 
-            variant="ghost" 
-            onClick={() => setIsLogin(!isLogin)}
+          <Button
+            variant="ghost"
+            onClick={toggleForm}
             className="text-sm"
           >
-            {isLogin 
-              ? "Don't have an account? Sign up" 
-              : "Already have an account? Sign in"
-            }
+            {isLogin
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
           </Button>
         </div>
       </CardContent>
