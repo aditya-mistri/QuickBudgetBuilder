@@ -1,0 +1,66 @@
+[
+  {
+    "id": "avatar_1",
+    "name": "Maya",
+    "image_url": "https://images.unsplash.com/photo-1494790108755-2616b612b639?w=400&h=600&fit=crop&crop=face",
+    "gender": "female",
+    "skin_tone": "light",
+    "body_type": "medium"
+  },
+  {
+    "id": "avatar_2",
+    "name": "Alex",
+    "image_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=face",
+    "gender": "male",
+    "skin_tone": "light",
+    "body_type": "medium"
+  },
+  {
+    "id": "avatar_3",
+    "name": "Zoe",
+    "image_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face",
+    "gender": "female",
+    "skin_tone": "medium",
+    "body_type": "medium"
+  },
+  {
+    "id": "avatar_4",
+    "name": "Marcus",
+    "image_url": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=600&fit=crop&crop=face",
+    "gender": "male",
+    "skin_tone": "dark",
+    "body_type": "medium"
+  },
+  {
+    "id": "avatar_5",
+    "name": "Priya",
+    "image_url": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face",
+    "gender": "female",
+    "skin_tone": "medium",
+    "body_type": "medium"
+  },
+  {
+    "id": "avatar_6",
+    "name": "David",
+    "image_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop&crop=face",
+    "gender": "male",
+    "skin_tone": "light",
+    "body_type": "medium"
+  },
+  {
+    "id": "avatar_7",
+    "name": "Aisha",
+    "image_url": "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400&h=600&fit=crop&crop=face",
+    "gender": "female",
+    "skin_tone": "dark",
+    "body_type": "medium"
+  },
+  {
+    "id": "avatar_8",
+    "name": "Carlos",
+    "image_url": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop&crop=face",
+    "gender": "male",
+    "skin_tone": "medium",
+    "body_type": "medium"
+  }
+]
