@@ -7,23 +7,23 @@ import { requireAuth, attachUser, requireOnboarding } from "./middleware/auth";
 import { outfitGenerator } from "./utils/outfitGenerator";
 import { budgetOptimizer } from "./utils/budgetOptimizer";
 import { aiImageGenerator } from "./utils/aiImageGenerator";
-import { 
-  generateOutfitRequestSchema, 
-  outfitResponseSchema, 
-  loginSchema, 
-  registerSchema, 
+import {
+  generateOutfitRequestSchema,
+  outfitResponseSchema,
+  loginSchema,
+  registerSchema,
   onboardingSchema,
   insertCartItemSchema,
   type Product,
   type GenerateOutfitRequest,
-  type OutfitResponse
+  type OutfitResponse,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import productsData from "./data/products.json";
 import avatarsData from "./data/avatars.json";
 
-declare module 'express-session' {
+declare module "express-session" {
   interface SessionData {
     userId: number;
   }
@@ -31,16 +31,18 @@ declare module 'express-session' {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false, // Set to true in production with HTTPS
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  }));
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "your-secret-key",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: false, // Set to true in production with HTTPS
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+    })
+  );
 
   // Attach user to request
   app.use(attachUser);
@@ -53,10 +55,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = registerSchema.parse(req.body);
       const user = await authService.register(validatedData);
-      
+
       // Set session
       req.session.userId = user.id;
-      
+
       // Return user without password
       const { password_hash, ...userWithoutPassword } = user;
       res.status(201).json(userWithoutPassword);
@@ -75,10 +77,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = loginSchema.parse(req.body);
       const user = await authService.login(validatedData);
-      
+
       // Set session
       req.session.userId = user.id;
-      
+
       // Return user without password
       const { password_hash, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
@@ -95,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy(() => {
-      res.clearCookie('connect.sid');
+      res.clearCookie("connect.sid");
       res.json({ message: "Logged out successfully" });
     });
   });
@@ -106,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Return user without password
       const { password_hash, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
@@ -121,14 +123,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = onboardingSchema.parse(req.body);
       const userId = req.session.userId!;
-      
+
       // Update user profile
       await authService.updateUser(userId, {
         profile_photo: validatedData.profilePhoto || null,
         preferred_avatar_id: validatedData.avatarId || null,
         onboarding_completed: true,
       });
-      
+
       // Update user preferences
       await storage.updateUserPreferences(userId, {
         personalization_type: validatedData.personalizationType,
@@ -138,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         budget_range_max: validatedData.budgetRange?.max || null,
         favorite_occasions: validatedData.favoriteOccasions || null,
       });
-      
+
       res.json({ message: "Onboarding completed successfully" });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -174,128 +176,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate outfit recommendations
-  app.post("/api/generate-outfit", requireAuth, requireOnboarding, async (req, res) => {
-    try {
-      const validatedRequest = generateOutfitRequestSchema.parse(req.body);
-      const userId = req.session.userId!;
-      
-      // Get user preferences for personalization
-      const userPreferences = await storage.getUserPreferences(userId);
-      const user = await authService.getUserById(userId);
-      
-      // Use user's profile photo or avatar preference if not provided
-      const userPhoto = validatedRequest.user_photo || user?.profile_photo;
-      const avatarId = validatedRequest.avatar_id || user?.preferred_avatar_id;
-      
-      const outfits = await outfitGenerator.generateOutfits(validatedRequest);
-      
-      // Convert to response format
-      const response: OutfitResponse[] = [];
-      
-      for (const outfit of outfits) {
-        const savedOutfit = await storage.createOutfit({
-          user_id: userId,
-          name: outfit.name,
-          occasion: validatedRequest.occasion,
-          total_cost: outfit.totalCost,
-          product_ids: outfit.products.map(p => p.id),
-          is_under_budget: outfit.isUnderBudget,
-          reasoning: outfit.reasoning,
-        });
+  app.post(
+    "/api/generate-outfit",
+    requireAuth,
+    requireOnboarding,
+    async (req, res) => {
+      try {
+        const validatedRequest = generateOutfitRequestSchema.parse(req.body);
+        const userId = req.session.userId!;
 
-        // Generate AI try-on image if user photo or avatar is provided
-        let tryonImageUrl: string | undefined;
-        if (userPhoto || avatarId) {
-          const tryonResult = await aiImageGenerator.generateTryOnImage({
-            userPhoto: userPhoto,
-            avatarId: avatarId,
-            products: outfit.products,
-            occasion: validatedRequest.occasion
+        // Get user preferences for personalization
+        const userPreferences = await storage.getUserPreferences(userId);
+        const user = await authService.getUserById(userId);
+
+        // Use user's profile photo or avatar preference if not provided
+        const userPhoto = validatedRequest.user_photo || user?.profile_photo;
+        const avatarId =
+          validatedRequest.avatar_id || user?.preferred_avatar_id;
+
+        const outfits = await outfitGenerator.generateOutfits(validatedRequest);
+
+        // Convert to response format
+        const response: OutfitResponse[] = [];
+
+        for (const outfit of outfits) {
+          const savedOutfit = await storage.createOutfit({
+            user_id: userId,
+            name: outfit.name,
+            occasion: validatedRequest.occasion,
+            total_cost: outfit.totalCost,
+            product_ids: outfit.products.map((p) => p.id),
+            is_under_budget: outfit.isUnderBudget,
+            reasoning: outfit.reasoning,
           });
-          
-          if (tryonResult.success) {
-            tryonImageUrl = tryonResult.imageUrl;
+
+          // Generate AI try-on image if user photo or avatar is provided
+          let tryonImageUrl: string | undefined;
+          if (userPhoto || avatarId) {
+            const tryonResult = await aiImageGenerator.generateTryOnImage({
+              userPhoto: userPhoto,
+              avatarId: avatarId,
+              products: outfit.products,
+              occasion: validatedRequest.occasion,
+            });
+
+            if (tryonResult.success) {
+              tryonImageUrl = tryonResult.imageUrl;
+            }
           }
+
+          response.push({
+            id: savedOutfit.id,
+            name: outfit.name,
+            occasion: validatedRequest.occasion,
+            total_cost: outfit.totalCost,
+            products: outfit.products,
+            is_under_budget: outfit.isUnderBudget,
+            tryon_image_url: tryonImageUrl,
+            reasoning: outfit.reasoning,
+            swap_suggestions: outfit.swapSuggestions?.map((swap) => ({
+              original_product: swap.originalProduct,
+              suggested_product: swap.suggestedProduct,
+              savings: swap.savings,
+            })),
+          });
         }
 
-        response.push({
-          id: savedOutfit.id,
-          name: outfit.name,
-          occasion: validatedRequest.occasion,
-          total_cost: outfit.totalCost,
-          products: outfit.products,
-          is_under_budget: outfit.isUnderBudget,
-          tryon_image_url: tryonImageUrl,
-          reasoning: outfit.reasoning,
-          swap_suggestions: outfit.swapSuggestions?.map(swap => ({
-            original_product: swap.originalProduct,
-            suggested_product: swap.suggestedProduct,
-            savings: swap.savings
-          }))
-        });
+        res.json(response);
+      } catch (error) {
+        console.error("Error generating outfit:", error);
+        res.status(400).json({ message: "Invalid request data" });
       }
-
-      res.json(response);
-    } catch (error) {
-      console.error("Error generating outfit:", error);
-      res.status(400).json({ message: "Invalid request data" });
     }
-  });
+  );
 
   // Apply budget optimization
-  app.post("/api/outfit/:id/optimize", requireAuth, requireOnboarding, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { budget } = req.body;
-      const userId = req.session.userId!;
-      
-      const outfit = await storage.getOutfitById(parseInt(id));
-      if (!outfit || outfit.user_id !== userId) {
-        return res.status(404).json({ message: "Outfit not found" });
+  app.post(
+    "/api/outfit/:id/optimize",
+    requireAuth,
+    requireOnboarding,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { budget } = req.body;
+        const userId = req.session.userId!;
+
+        const outfit = await storage.getOutfitById(parseInt(id));
+        if (!outfit || outfit.user_id !== userId) {
+          return res.status(404).json({ message: "Outfit not found" });
+        }
+
+        // Get the products for this outfit
+        const products = await Promise.all(
+          outfit.product_ids.map(async (productId) => {
+            const product = await storage.getProductById(productId);
+            if (!product) {
+              throw new Error(`Product with ID ${productId} not found`);
+            }
+            return product;
+          })
+        );
+
+        const optimization = await budgetOptimizer.optimizeForBudget(
+          products,
+          budget
+        );
+
+        res.json({
+          original: {
+            products: products,
+            totalCost: products.reduce((sum, p) => sum + p.price, 0),
+          },
+          optimized: {
+            products: optimization.optimizedProducts,
+            totalCost: optimization.totalCost,
+            savings: optimization.savings,
+            swapsMade: optimization.swapsMade,
+          },
+        });
+      } catch (error) {
+        console.error("Error optimizing outfit:", error);
+        res.status(500).json({ message: "Failed to optimize outfit" });
       }
-      
-      // Get the products for this outfit
-      const products = await Promise.all(
-        outfit.product_ids.map(async (productId) => {
-          const product = await storage.getProductById(productId);
-          if (!product) {
-            throw new Error(`Product with ID ${productId} not found`);
-          }
-          return product;
-        })
-      );
-      
-      const optimization = await budgetOptimizer.optimizeForBudget(products, budget);
-      
-      res.json({
-        original: {
-          products: products,
-          totalCost: products.reduce((sum, p) => sum + p.price, 0),
-        },
-        optimized: {
-          products: optimization.optimizedProducts,
-          totalCost: optimization.totalCost,
-          savings: optimization.savings,
-          swapsMade: optimization.swapsMade,
-        },
-      });
-    } catch (error) {
-      console.error("Error optimizing outfit:", error);
-      res.status(500).json({ message: "Failed to optimize outfit" });
     }
-  });
+  );
 
   // Cart routes
   app.post("/api/cart", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const validatedData = insertCartItemSchema.parse(req.body);
-      
+
       const cartItem = await storage.addToCart({
         ...validatedData,
         user_id: userId,
       });
-      
+
       res.json(cartItem);
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -353,10 +369,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 async function initializeProducts() {
   try {
     const existingProducts = await storage.getAllProducts();
-    
+
     if (existingProducts.length === 0) {
       console.log("Initializing products...");
-      
+
       for (const productData of productsData) {
         await storage.createProduct({
           id: productData.id,
@@ -365,14 +381,13 @@ async function initializeProducts() {
           category: productData.category,
           brand: productData.brand,
           image_url: productData.image_url,
-          description: productData.description,
           color: productData.color,
-          colors: productData.colors,
+          colors: productData.colors || [productData.color], // Use colors array or create from single color
           sizes: productData.sizes,
           tags: productData.tags,
         });
       }
-      
+
       console.log(`Initialized ${productsData.length} products`);
     }
   } catch (error) {
