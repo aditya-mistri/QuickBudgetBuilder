@@ -11,7 +11,7 @@ import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { user, isLoading, isAuthenticated, isOnboarded } = useAuth();
+  const { user, isLoading, isAuthenticated, isOnboarded, refetch } = useAuth();
 
   if (isLoading) {
     return (
@@ -24,7 +24,7 @@ function Router() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <AuthForms onAuthSuccess={() => window.location.reload()} />
+        <AuthForms onAuthSuccess={() => refetch()} />
       </div>
     );
   }
@@ -32,7 +32,7 @@ function Router() {
   if (!isOnboarded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <OnboardingForm onComplete={() => window.location.reload()} />
+        <OnboardingForm onComplete={() => refetch()} />
       </div>
     );
   }

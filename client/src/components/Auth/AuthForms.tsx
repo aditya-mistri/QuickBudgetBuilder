@@ -3,11 +3,23 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { loginSchema, registerSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -21,6 +33,12 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
   const [isLogin, setIsLogin] = useState(true);
   const { toast } = useToast();
+
+  // Reset forms when switching between login and register
+  const resetForms = () => {
+    loginForm.reset();
+    registerForm.reset();
+  };
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -38,14 +56,26 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
       first_name: "",
       last_name: "",
     },
+    mode: "onChange", // Enable real-time validation
   });
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      return await apiRequest("/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(data),
+        credentials: "include",
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Login failed");
+      }
+
+      return await response.json();
     },
     onSuccess: (user) => {
       toast({
@@ -57,7 +87,8 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
     onError: (error) => {
       toast({
         title: "Login failed",
-        description: error.message || "Please check your credentials and try again.",
+        description:
+          error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
     },
@@ -65,10 +96,21 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
-      return await apiRequest("/api/auth/register", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(data),
+        credentials: "include",
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Registration failed");
+      }
+
+      return await response.json();
     },
     onSuccess: (user) => {
       toast({
@@ -101,16 +143,18 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
           {isLogin ? "Welcome Back" : "Create Account"}
         </CardTitle>
         <CardDescription className="text-center">
-          {isLogin 
-            ? "Sign in to your account to continue" 
-            : "Create a new account to get started"
-          }
+          {isLogin
+            ? "Sign in to your account to continue"
+            : "Create a new account to get started"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {isLogin ? (
           <Form {...loginForm}>
-            <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+            <form
+              onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={loginForm.control}
                 name="email"
@@ -118,10 +162,10 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Enter your email" 
-                        {...field} 
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -135,19 +179,19 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Enter your password" 
-                        {...field} 
+                      <Input
+                        type="password"
+                        placeholder="Enter your password"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? "Signing in..." : "Sign In"}
@@ -155,8 +199,11 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
             </form>
           </Form>
         ) : (
-          <Form {...registerForm}>
-            <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+          <Form {...registerForm} key={`register-${isLogin}`}>
+            <form
+              onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={registerForm.control}
@@ -165,10 +212,7 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="First name" 
-                          {...field} 
-                        />
+                        <Input placeholder="First name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -181,10 +225,7 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Last name" 
-                          {...field} 
-                        />
+                        <Input placeholder="Last name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -198,10 +239,11 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Enter your email" 
-                        {...field} 
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        autoComplete="email"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -215,37 +257,41 @@ export function AuthForms({ onAuthSuccess }: AuthFormsProps) {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Choose a password" 
-                        {...field} 
+                      <Input
+                        type="password"
+                        placeholder="Choose a password"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={registerMutation.isPending}
               >
-                {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                {registerMutation.isPending
+                  ? "Creating account..."
+                  : "Create Account"}
               </Button>
             </form>
           </Form>
         )}
 
         <div className="text-center">
-          <Button 
-            variant="ghost" 
-            onClick={() => setIsLogin(!isLogin)}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              resetForms();
+            }}
             className="text-sm"
           >
-            {isLogin 
-              ? "Don't have an account? Sign up" 
-              : "Already have an account? Sign in"
-            }
+            {isLogin
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
           </Button>
         </div>
       </CardContent>

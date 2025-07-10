@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type User } from "@shared/schema";
 
@@ -7,17 +6,26 @@ export function useAuth() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: user, isLoading, error } = useQuery({
+  const { data: user, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       try {
-        return await apiRequest("/api/auth/me");
-      } catch (error) {
-        // If user is not authenticated, return null instead of throwing
-        if (error.message.includes("401")) {
+        const response = await fetch("/api/auth/me", {
+          credentials: "include",
+        });
+        
+        if (response.status === 401) {
           return null;
         }
-        throw error;
+        
+        if (!response.ok) {
+          throw new Error(`${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error("Auth check error:", error);
+        return null;
       }
     },
     retry: false,
@@ -26,8 +34,9 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await apiRequest("/api/auth/logout", {
+      await fetch("/api/auth/logout", {
         method: "POST",
+        credentials: "include",
       });
       
       // Clear all queries
@@ -53,6 +62,7 @@ export function useAuth() {
     isAuthenticated: !!user,
     isOnboarded: user?.onboarding_completed || false,
     logout,
+    refetch,
     error,
   };
 }

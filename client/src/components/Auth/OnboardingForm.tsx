@@ -3,12 +3,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { onboardingSchema } from "@shared/schema";
 import { z } from "zod";
 import { PhotoUpload } from "@/components/PhotoUpload";
@@ -39,10 +51,21 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
 
   const onboardingMutation = useMutation({
     mutationFn: async (data: OnboardingFormData) => {
-      return await apiRequest("/api/onboarding", {
+      const response = await fetch("/api/onboarding", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(data),
+        credentials: "include",
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Onboarding failed");
+      }
+
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -121,19 +144,29 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
                         >
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="photo" id="photo" />
-                            <Label htmlFor="photo" className="text-sm font-medium">
-                              Upload my photo for personalized try-on experiences
+                            <Label
+                              htmlFor="photo"
+                              className="text-sm font-medium"
+                            >
+                              Upload my photo for personalized try-on
+                              experiences
                             </Label>
                           </div>
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="avatar" id="avatar" />
-                            <Label htmlFor="avatar" className="text-sm font-medium">
+                            <Label
+                              htmlFor="avatar"
+                              className="text-sm font-medium"
+                            >
                               Choose an avatar to represent me
                             </Label>
                           </div>
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="direct" id="direct" />
-                            <Label htmlFor="direct" className="text-sm font-medium">
+                            <Label
+                              htmlFor="direct"
+                              className="text-sm font-medium"
+                            >
                               Skip personalization and go straight to styling
                             </Label>
                           </div>
@@ -153,7 +186,8 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
                     Upload Your Photo
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Upload a clear photo of yourself to get personalized try-on experiences
+                    Upload a clear photo of yourself to get personalized try-on
+                    experiences
                   </p>
                 </div>
                 <FormField
@@ -206,11 +240,10 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
             {step === 2 && personalizationType === "direct" && (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold mb-4">
-                    All Set!
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-4">All Set!</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    You can always add personalization later in your profile settings
+                    You can always add personalization later in your profile
+                    settings
                   </p>
                 </div>
               </div>
@@ -226,7 +259,7 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
                     Help us understand your style preferences better
                   </p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -240,12 +273,16 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
                               <Button
                                 key={size}
                                 type="button"
-                                variant={field.value?.includes(size) ? "default" : "outline"}
+                                variant={
+                                  field.value?.includes(size)
+                                    ? "default"
+                                    : "outline"
+                                }
                                 size="sm"
                                 onClick={() => {
                                   const current = field.value || [];
                                   const updated = current.includes(size)
-                                    ? current.filter(s => s !== size)
+                                    ? current.filter((s) => s !== size)
                                     : [...current, size];
                                   field.onChange(updated);
                                 }}
@@ -268,16 +305,29 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
                         <FormLabel>Preferred Colors</FormLabel>
                         <FormControl>
                           <div className="flex flex-wrap gap-2">
-                            {["Black", "White", "Blue", "Red", "Green", "Pink", "Purple", "Yellow"].map((color) => (
+                            {[
+                              "Black",
+                              "White",
+                              "Blue",
+                              "Red",
+                              "Green",
+                              "Pink",
+                              "Purple",
+                              "Yellow",
+                            ].map((color) => (
                               <Button
                                 key={color}
                                 type="button"
-                                variant={field.value?.includes(color) ? "default" : "outline"}
+                                variant={
+                                  field.value?.includes(color)
+                                    ? "default"
+                                    : "outline"
+                                }
                                 size="sm"
                                 onClick={() => {
                                   const current = field.value || [];
                                   const updated = current.includes(color)
-                                    ? current.filter(c => c !== color)
+                                    ? current.filter((c) => c !== color)
                                     : [...current, color];
                                   field.onChange(updated);
                                 }}
@@ -301,16 +351,27 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
                       <FormLabel>Favorite Occasions</FormLabel>
                       <FormControl>
                         <div className="flex flex-wrap gap-2">
-                          {["Work", "Date Night", "Casual", "Party", "Vacation", "Summer Picnic"].map((occasion) => (
+                          {[
+                            "Work",
+                            "Date Night",
+                            "Casual",
+                            "Party",
+                            "Vacation",
+                            "Summer Picnic",
+                          ].map((occasion) => (
                             <Button
                               key={occasion}
                               type="button"
-                              variant={field.value?.includes(occasion) ? "default" : "outline"}
+                              variant={
+                                field.value?.includes(occasion)
+                                  ? "default"
+                                  : "outline"
+                              }
                               size="sm"
                               onClick={() => {
                                 const current = field.value || [];
                                 const updated = current.includes(occasion)
-                                  ? current.filter(o => o !== occasion)
+                                  ? current.filter((o) => o !== occasion)
                                   : [...current, occasion];
                                 field.onChange(updated);
                               }}
@@ -318,6 +379,55 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
                               {occasion}
                             </Button>
                           ))}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="budgetRange"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Budget Range ($)</FormLabel>
+                      <FormControl>
+                        <div className="space-y-4">
+                          <div className="flex items-center space-x-4">
+                            <label className="text-sm">Min: $</label>
+                            <input
+                              type="number"
+                              min="50"
+                              max="500"
+                              value={field.value?.min || 50}
+                              onChange={(e) =>
+                                field.onChange({
+                                  ...field.value,
+                                  min: parseInt(e.target.value) || 50,
+                                })
+                              }
+                              className="w-20 px-2 py-1 border rounded"
+                            />
+                            <label className="text-sm">Max: $</label>
+                            <input
+                              type="number"
+                              min="50"
+                              max="500"
+                              value={field.value?.max || 200}
+                              onChange={(e) =>
+                                field.onChange({
+                                  ...field.value,
+                                  max: parseInt(e.target.value) || 200,
+                                })
+                              }
+                              className="w-20 px-2 py-1 border rounded"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Range: ${field.value?.min || 50} - $
+                            {field.value?.max || 200}
+                          </p>
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -336,17 +446,16 @@ export function OnboardingForm({ onComplete }: OnboardingFormProps) {
               >
                 Back
               </Button>
-              
+
               {step < 3 ? (
                 <Button type="button" onClick={handleNext}>
                   Next
                 </Button>
               ) : (
-                <Button 
-                  type="submit" 
-                  disabled={onboardingMutation.isPending}
-                >
-                  {onboardingMutation.isPending ? "Setting up..." : "Complete Setup"}
+                <Button type="submit" disabled={onboardingMutation.isPending}>
+                  {onboardingMutation.isPending
+                    ? "Setting up..."
+                    : "Complete Setup"}
                 </Button>
               )}
             </div>

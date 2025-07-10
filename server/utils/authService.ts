@@ -27,8 +27,8 @@ export class AuthService {
     const newUser: InsertUser = {
       email: userData.email,
       password_hash: passwordHash,
-      first_name: userData.firstName || null,
-      last_name: userData.lastName || null,
+      first_name: userData.first_name || null,
+      last_name: userData.last_name || null,
       profile_photo: null,
       preferred_avatar_id: null,
       onboarding_completed: false,
