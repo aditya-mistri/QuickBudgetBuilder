@@ -1,32 +1,58 @@
-import { apiRequest } from "@/lib/queryClient";
-import { 
-  type GenerateOutfitRequest, 
-  type OutfitResponse, 
-  type Product, 
+import {
+  type GenerateOutfitRequest,
+  type OutfitResponse,
+  type Product,
   type CartItem,
-  type InsertCartItem,
-  type Avatar 
+  type ClientCartItem,
+  type Avatar,
 } from "@shared/schema";
+
+// Helper function for API requests
+async function fetchApi(endpoint: string, options: RequestInit = {}) {
+  const response = await fetch(endpoint, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `HTTP ${response.status}`);
+  }
+
+  return response;
+}
 
 export const api = {
   // Product operations
   async getProducts(): Promise<Product[]> {
-    const response = await apiRequest("GET", "/api/products");
+    const response = await fetchApi("/api/products");
     return response.json();
   },
 
   async getProductsByCategory(category: string): Promise<Product[]> {
-    const response = await apiRequest("GET", `/api/products/category/${category}`);
+    const response = await fetchApi(`/api/products/category/${category}`);
     return response.json();
   },
 
   // Outfit operations
-  async generateOutfits(request: GenerateOutfitRequest): Promise<OutfitResponse[]> {
-    const response = await apiRequest("POST", "/api/generate-outfit", request);
+  async generateOutfits(
+    request: GenerateOutfitRequest
+  ): Promise<OutfitResponse[]> {
+    const response = await fetchApi("/api/generate-outfit", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
     return response.json();
   },
 
-  async optimizeOutfit(outfitId: number, budget: number): Promise<{
+  async optimizeOutfit(
+    outfitId: number,
+    budget: number
+  ): Promise<{
     optimizedProducts: Product[];
     totalCost: number;
     savings: number;
@@ -36,32 +62,38 @@ export const api = {
       savings: number;
     }>;
   }> {
-    const response = await apiRequest("POST", `/api/outfit/${outfitId}/optimize`, { budget });
+    const response = await fetchApi(`/api/outfit/${outfitId}/optimize`, {
+      method: "POST",
+      body: JSON.stringify({ budget }),
+    });
     return response.json();
   },
 
   // Cart operations
-  async addToCart(item: InsertCartItem): Promise<CartItem> {
-    const response = await apiRequest("POST", "/api/cart/add", item);
+  async addToCart(item: ClientCartItem): Promise<CartItem> {
+    const response = await fetchApi("/api/cart", {
+      method: "POST",
+      body: JSON.stringify(item),
+    });
     return response.json();
   },
 
   async getCart(): Promise<CartItem[]> {
-    const response = await apiRequest("GET", "/api/cart");
+    const response = await fetchApi("/api/cart");
     return response.json();
   },
 
   async clearCart(): Promise<void> {
-    await apiRequest("DELETE", "/api/cart/clear");
+    await fetchApi("/api/cart/clear", { method: "DELETE" });
   },
 
   async removeFromCart(id: number): Promise<void> {
-    await apiRequest("DELETE", `/api/cart/${id}`);
+    await fetchApi(`/api/cart/${id}`, { method: "DELETE" });
   },
 
   // Avatar operations
   async getAvatars(): Promise<Avatar[]> {
-    const response = await apiRequest("GET", "/api/avatars");
+    const response = await fetchApi("/api/avatars");
     return response.json();
-  }
+  },
 };

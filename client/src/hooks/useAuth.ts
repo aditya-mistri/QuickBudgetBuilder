@@ -6,22 +6,27 @@ export function useAuth() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: user, isLoading, error, refetch } = useQuery({
+  const {
+    data: user,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       try {
         const response = await fetch("/api/auth/me", {
           credentials: "include",
         });
-        
+
         if (response.status === 401) {
           return null;
         }
-        
+
         if (!response.ok) {
           throw new Error(`${response.status}: ${response.statusText}`);
         }
-        
+
         return await response.json();
       } catch (error) {
         console.error("Auth check error:", error);
@@ -38,10 +43,10 @@ export function useAuth() {
         method: "POST",
         credentials: "include",
       });
-      
+
       // Clear all queries
       queryClient.clear();
-      
+
       toast({
         title: "Logged out",
         description: "You have been logged out successfully.",

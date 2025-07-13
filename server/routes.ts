@@ -13,7 +13,7 @@ import {
   loginSchema,
   registerSchema,
   onboardingSchema,
-  insertCartItemSchema,
+  clientCartItemSchema,
   type Product,
   type GenerateOutfitRequest,
   type OutfitResponse,
@@ -22,6 +22,7 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import productsData from "./data/products.json";
 import avatarsData from "./data/avatars.json";
+import { productAnalytics } from "./scripts/productAnalytics.js";
 
 declare module "express-session" {
   interface SessionData {
@@ -68,7 +69,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ message: validationError.toString() });
       } else {
         console.error("Registration error:", error);
-        res.status(400).json({ message: error.message });
+        res.status(400).json({
+          message:
+            error instanceof Error ? error.message : "Registration failed",
+        });
       }
     }
   });
@@ -90,7 +94,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ message: validationError.toString() });
       } else {
         console.error("Login error:", error);
-        res.status(401).json({ message: error.message });
+        res.status(401).json({
+          message: error instanceof Error ? error.message : "Login failed",
+        });
       }
     }
   });
@@ -175,6 +181,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get product database statistics
+  app.get("/api/products/stats", async (req, res) => {
+    try {
+      const analytics = await productAnalytics.generateProductAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching product statistics:", error);
+      res.status(500).json({ message: "Failed to fetch product statistics" });
+    }
+  });
+
+  // Check database status and whether seeding is needed
+  app.get("/api/database/status", async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      const productCount = products.length;
+
+      // Consider database properly seeded if we have more than 100 products
+      const needsSeeding = productCount < 100;
+
+      res.json({
+        productCount,
+        needsSeeding,
+        isSeeded: !needsSeeding,
+        recommendation: needsSeeding
+          ? "Run 'npm run db:seed' to populate your database with a comprehensive product catalog"
+          : "Database has sufficient products for optimal user experience",
+      });
+    } catch (error) {
+      console.error("Error checking database status:", error);
+      res.status(500).json({ message: "Failed to check database status" });
+    }
+  });
+
   // Generate outfit recommendations
   app.post(
     "/api/generate-outfit",
@@ -208,14 +248,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             product_ids: outfit.products.map((p) => p.id),
             is_under_budget: outfit.isUnderBudget,
             reasoning: outfit.reasoning,
-          });
-
-          // Generate AI try-on image if user photo or avatar is provided
+          }); // Generate AI try-on image if user photo or avatar is provided
           let tryonImageUrl: string | undefined;
           if (userPhoto || avatarId) {
             const tryonResult = await aiImageGenerator.generateTryOnImage({
-              userPhoto: userPhoto,
-              avatarId: avatarId,
+              userPhoto: userPhoto || undefined,
+              avatarId: avatarId || undefined,
               products: outfit.products,
               occasion: validatedRequest.occasion,
             });
@@ -305,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cart", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const validatedData = insertCartItemSchema.parse(req.body);
+      const validatedData = clientCartItemSchema.parse(req.body);
 
       const cartItem = await storage.addToCart({
         ...validatedData,
@@ -382,7 +420,7 @@ async function initializeProducts() {
           brand: productData.brand,
           image_url: productData.image_url,
           color: productData.color,
-          colors: productData.colors || [productData.color], // Use colors array or create from single color
+          colors: [productData.color], // Create colors array from single color
           sizes: productData.sizes,
           tags: productData.tags,
         });

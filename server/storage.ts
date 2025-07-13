@@ -25,23 +25,26 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | null>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User>;
-  
+
   // User preferences operations
   getUserPreferences(userId: number): Promise<UserPreferences | null>;
-  updateUserPreferences(userId: number, preferences: InsertUserPreferences): Promise<UserPreferences>;
-  
+  updateUserPreferences(
+    userId: number,
+    preferences: InsertUserPreferences
+  ): Promise<UserPreferences>;
+
   // Product operations
   getAllProducts(): Promise<Product[]>;
   getProductById(id: string): Promise<Product | undefined>;
   getProductsByCategory(category: string): Promise<Product[]>;
   getProductsByTags(tags: string[]): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
-  
+
   // Outfit operations
   createOutfit(outfit: InsertOutfit): Promise<Outfit>;
   getOutfitById(id: number): Promise<Outfit | undefined>;
   getUserOutfits(userId: number): Promise<Outfit[]>;
-  
+
   // Cart operations
   addToCart(item: InsertCartItem): Promise<CartItem>;
   getCartItems(userId: number): Promise<CartItem[]>;
@@ -94,14 +97,22 @@ export class DatabaseStorage implements IStorage {
     return preferences || null;
   }
 
-  async updateUserPreferences(userId: number, preferences: InsertUserPreferences): Promise<UserPreferences> {
+  async updateUserPreferences(
+    userId: number,
+    preferences: Omit<InsertUserPreferences, "user_id">
+  ): Promise<UserPreferences> {
     const existing = await this.getUserPreferences(userId);
-    
+
     if (existing) {
       const [updated] = await db
         .update(user_preferences)
         .set({
-          ...preferences,
+          preferred_sizes: preferences.preferred_sizes as string[] | null,
+          preferred_colors: preferences.preferred_colors as string[] | null,
+          favorite_occasions: preferences.favorite_occasions as string[] | null,
+          budget_range_min: preferences.budget_range_min,
+          budget_range_max: preferences.budget_range_max,
+          personalization_type: preferences.personalization_type,
           updated_at: new Date(),
         })
         .where(eq(user_preferences.user_id, userId))
@@ -111,8 +122,13 @@ export class DatabaseStorage implements IStorage {
       const [created] = await db
         .insert(user_preferences)
         .values({
-          ...preferences,
           user_id: userId,
+          preferred_sizes: preferences.preferred_sizes as string[] | null,
+          preferred_colors: preferences.preferred_colors as string[] | null,
+          favorite_occasions: preferences.favorite_occasions as string[] | null,
+          budget_range_min: preferences.budget_range_min,
+          budget_range_max: preferences.budget_range_max,
+          personalization_type: preferences.personalization_type,
           updated_at: new Date(),
         })
         .returning();
@@ -126,25 +142,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProductById(id: string): Promise<Product | undefined> {
-    const [product] = await db.select().from(products).where(eq(products.id, id));
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, id));
     return product;
   }
 
   async getProductsByCategory(category: string): Promise<Product[]> {
-    return await db.select().from(products).where(eq(products.category, category));
-  }
-
-  async getProductsByTags(tags: string[]): Promise<Product[]> {
     return await db
       .select()
       .from(products)
-      .where(
-        sql`${products.tags} && ${JSON.stringify(tags)}::jsonb`
-      );
+      .where(eq(products.category, category));
+  }
+
+  async getProductsByTags(tags: string[]): Promise<Product[]> {
+    // Use JSON operations that work with Neon PostgreSQL
+    // For now, let's just get all products and filter in memory to avoid complex JSON queries
+    const allProducts = await db.select().from(products);
+
+    // Filter products that have any of the specified tags
+    return allProducts.filter((product) => {
+      if (!product.tags || !Array.isArray(product.tags)) return false;
+      return tags.some((tag) => product.tags.includes(tag));
+    });
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
-    const [created] = await db.insert(products).values(product).returning();
+    const [created] = await db
+      .insert(products)
+      .values({
+        ...product,
+        sizes: product.sizes as string[],
+        colors: product.colors as string[],
+        tags: product.tags as string[],
+      })
+      .returning();
     return created;
   }
 
@@ -154,6 +187,7 @@ export class DatabaseStorage implements IStorage {
       .insert(outfits)
       .values({
         ...outfitData,
+        product_ids: outfitData.product_ids as string[],
         created_at: new Date(),
       })
       .returning();
@@ -179,6 +213,7 @@ export class DatabaseStorage implements IStorage {
       .insert(cart_items)
       .values({
         ...item,
+        product_ids: item.product_ids as string[],
         created_at: new Date(),
       })
       .returning();

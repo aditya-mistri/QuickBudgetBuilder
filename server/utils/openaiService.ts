@@ -7,7 +7,9 @@ let openai: OpenAI | null = null;
 if (process.env.OPENAI_API_KEY) {
   openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 } else {
-  console.warn("OpenAI API key not provided. AI features will use fallback implementations.");
+  console.warn(
+    "OpenAI API key not provided. AI features will use fallback implementations."
+  );
 }
 
 export interface OutfitGenerationRequest {
@@ -27,17 +29,20 @@ export interface AIOutfitRecommendation {
 }
 
 export class OpenAIService {
-  async generateOutfitRecommendations(request: OutfitGenerationRequest): Promise<AIOutfitRecommendation[]> {
+  async generateOutfitRecommendations(
+    request: OutfitGenerationRequest
+  ): Promise<AIOutfitRecommendation[]> {
     if (!openai) {
       throw new Error("OpenAI API key not configured");
     }
-    
+
     const { occasion, budget, size, color, availableProducts } = request;
-    
+
     // Filter products by size and color if specified
-    const filteredProducts = availableProducts.filter(product => {
+    const filteredProducts = availableProducts.filter((product) => {
       if (size && product.sizes && !product.sizes.includes(size)) return false;
-      if (color && product.colors && !product.colors.includes(color)) return false;
+      if (color && product.colors && !product.colors.includes(color))
+        return false;
       return true;
     });
 
@@ -45,11 +50,11 @@ export class OpenAIService {
 
 Occasion: ${occasion}
 Budget: $${budget}
-${size ? `Size: ${size}` : ''}
-${color ? `Preferred color: ${color}` : ''}
+${size ? `Size: ${size}` : ""}
+${color ? `Preferred color: ${color}` : ""}
 
 Available Products:
-${filteredProducts.map(p => `- ${p.name} ($${p.price}) - ${p.category} - Tags: ${p.tags.join(', ')}`).join('\n')}
+${filteredProducts.map((p) => `- ${p.name} ($${p.price}) - ${p.category} - Tags: ${p.tags.join(", ")}`).join("\n")}
 
 Requirements:
 1. Each outfit must stay within the $${budget} budget
@@ -75,28 +80,29 @@ Return your response as a JSON array with this structure:
         messages: [
           {
             role: "system",
-            content: "You are a professional fashion stylist with expertise in budget-conscious outfit creation. Always respond with valid JSON."
+            content:
+              "You are a professional fashion stylist with expertise in budget-conscious outfit creation. Always respond with valid JSON.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7
+        temperature: 0.7,
       });
 
-      const result = JSON.parse(response.choices[0].message.content);
+      const result = JSON.parse(response.choices[0].message.content || "[]");
       const outfits = Array.isArray(result) ? result : result.outfits || [];
 
       return outfits.map((outfit: any) => ({
         name: outfit.name,
         description: outfit.description,
-        products: outfit.product_ids.map((id: string) => 
-          filteredProducts.find(p => p.id === id)
-        ).filter(Boolean),
+        products: outfit.product_ids
+          .map((id: string) => filteredProducts.find((p) => p.id === id))
+          .filter(Boolean),
         totalCost: outfit.total_cost,
-        reasoning: outfit.reasoning
+        reasoning: outfit.reasoning,
       }));
     } catch (error) {
       console.error("OpenAI API error:", error);
@@ -105,41 +111,45 @@ Return your response as a JSON array with this structure:
   }
 
   async optimizeOutfitForBudget(
-    products: Product[], 
-    budget: number, 
+    products: Product[],
+    budget: number,
     availableProducts: Product[]
   ): Promise<{
     optimizedProducts: Product[];
     totalCost: number;
     savings: number;
-    swapsMade: Array<{ original: Product; replacement: Product; savings: number }>;
+    swapsMade: Array<{
+      original: Product;
+      replacement: Product;
+      savings: number;
+    }>;
   }> {
     if (!openai) {
       throw new Error("OpenAI API key not configured");
     }
-    
+
     const currentTotal = products.reduce((sum, p) => sum + p.price, 0);
-    
+
     if (currentTotal <= budget) {
       return {
         optimizedProducts: products,
         totalCost: currentTotal,
         savings: 0,
-        swapsMade: []
+        swapsMade: [],
       };
     }
 
     const prompt = `You are a budget optimization expert. Help optimize this outfit to fit within budget:
 
 Current outfit:
-${products.map(p => `- ${p.name} ($${p.price}) - ${p.category}`).join('\n')}
+${products.map((p) => `- ${p.name} ($${p.price}) - ${p.category}`).join("\n")}
 
 Current total: $${currentTotal}
 Target budget: $${budget}
 Need to save: $${(currentTotal - budget).toFixed(2)}
 
 Available alternatives:
-${availableProducts.map(p => `- ${p.name} ($${p.price}) - ${p.category} - Tags: ${p.tags.join(', ')}`).join('\n')}
+${availableProducts.map((p) => `- ${p.name} ($${p.price}) - ${p.category} - Tags: ${p.tags.join(", ")}`).join("\n")}
 
 Find the best product swaps to stay within budget while maintaining outfit quality and style coherence.
 
@@ -161,18 +171,19 @@ Return JSON with this structure:
         messages: [
           {
             role: "system",
-            content: "You are a budget optimization expert. Always respond with valid JSON."
+            content:
+              "You are a budget optimization expert. Always respond with valid JSON.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.3
+        temperature: 0.3,
       });
 
-      const result = JSON.parse(response.choices[0].message.content);
+      const result = JSON.parse(response.choices[0].message.content || "{}");
       const swaps = result.swaps || [];
 
       let optimizedProducts = [...products];
@@ -180,11 +191,17 @@ Return JSON with this structure:
       const swapsMade = [];
 
       for (const swap of swaps) {
-        const originalProduct = products.find(p => p.id === swap.original_product_id);
-        const replacementProduct = availableProducts.find(p => p.id === swap.replacement_product_id);
+        const originalProduct = products.find(
+          (p) => p.id === swap.original_product_id
+        );
+        const replacementProduct = availableProducts.find(
+          (p) => p.id === swap.replacement_product_id
+        );
 
         if (originalProduct && replacementProduct) {
-          const index = optimizedProducts.findIndex(p => p.id === originalProduct.id);
+          const index = optimizedProducts.findIndex(
+            (p) => p.id === originalProduct.id
+          );
           if (index !== -1) {
             optimizedProducts[index] = replacementProduct;
             const savings = originalProduct.price - replacementProduct.price;
@@ -192,7 +209,7 @@ Return JSON with this structure:
             swapsMade.push({
               original: originalProduct,
               replacement: replacementProduct,
-              savings
+              savings,
             });
           }
         }
@@ -204,7 +221,7 @@ Return JSON with this structure:
         optimizedProducts,
         totalCost: newTotal,
         savings: totalSavings,
-        swapsMade
+        swapsMade,
       };
     } catch (error) {
       console.error("OpenAI optimization error:", error);

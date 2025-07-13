@@ -1,12 +1,15 @@
 import { Product } from "@shared/schema";
 import { storage } from "../storage";
-import { openaiService } from "./openaiService";
+import { geminiService } from "./geminiService";
 
 export interface OutfitGenerationParams {
   occasion: string;
   budget: number;
+  age?: number;
   size?: string;
   color?: string;
+  user_photo?: string;
+  avatar_id?: string;
 }
 
 export interface GeneratedOutfit {
@@ -25,39 +28,51 @@ export interface SwapSuggestion {
 }
 
 export class OutfitGenerator {
-  async generateOutfits(params: OutfitGenerationParams): Promise<GeneratedOutfit[]> {
-    const { occasion, budget, size, color } = params;
-    
+  async generateOutfits(
+    params: OutfitGenerationParams
+  ): Promise<GeneratedOutfit[]> {
+    const { occasion, budget, age, size, color, user_photo, avatar_id } =
+      params;
+
     try {
       // Get all available products
       const allProducts = await storage.getAllProducts();
-      
-      // Use OpenAI to generate intelligent outfit recommendations
-      const aiRecommendations = await openaiService.generateOutfitRecommendations({
-        occasion,
-        budget,
-        size,
-        color,
-        availableProducts: allProducts
-      });
+
+      // Use Gemini to generate intelligent outfit recommendations
+      const aiRecommendations =
+        await geminiService.generateOutfitRecommendations({
+          occasion,
+          budget,
+          age,
+          size,
+          color,
+          userPhoto: user_photo,
+          avatarId: avatar_id,
+          availableProducts: allProducts,
+        });
 
       // Convert AI recommendations to GeneratedOutfit format
       const outfits: GeneratedOutfit[] = [];
-      
+
       for (const recommendation of aiRecommendations) {
         const isUnderBudget = recommendation.totalCost <= budget;
         let swapSuggestions: SwapSuggestion[] | undefined;
-        
-        // If over budget, try to optimize
+
+        // If over budget, try to optimize using Gemini
         if (!isUnderBudget) {
           try {
-            const optimization = await openaiService.optimizeOutfitForBudget(
+            const optimization = await geminiService.optimizeOutfitForBudget(
               recommendation.products,
               budget,
               allProducts
             );
-            
-            swapSuggestions = optimization.swapsMade;
+
+            // Convert the swap format from Gemini service to our expected format
+            swapSuggestions = optimization.swapsMade.map((swap) => ({
+              originalProduct: swap.original,
+              suggestedProduct: swap.replacement,
+              savings: swap.savings,
+            }));
           } catch (error) {
             console.error("Failed to optimize outfit:", error);
             // Fallback to manual optimization
@@ -68,54 +83,67 @@ export class OutfitGenerator {
             );
           }
         }
-        
+
         outfits.push({
           name: recommendation.name,
           products: recommendation.products,
           totalCost: recommendation.totalCost,
           isUnderBudget,
           swapSuggestions,
-          reasoning: recommendation.reasoning
+          reasoning: recommendation.reasoning,
         });
       }
 
       return outfits;
     } catch (error) {
-      console.error("AI outfit generation failed, falling back to rule-based:", error);
-      
+      // Check if it's a quota error and handle gracefully
+      if (error instanceof Error && error.message.includes("quota")) {
+        console.log(
+          "Gemini quota exceeded, using rule-based outfit generation"
+        );
+      } else {
+        console.error(
+          "AI outfit generation failed, falling back to rule-based:",
+          error
+        );
+      }
+
       // Fallback to rule-based generation if AI fails
       return this.generateOutfitsFallback(params);
     }
   }
 
-  private async generateOutfitsFallback(params: OutfitGenerationParams): Promise<GeneratedOutfit[]> {
+  private async generateOutfitsFallback(
+    params: OutfitGenerationParams
+  ): Promise<GeneratedOutfit[]> {
     const { occasion, budget, size, color } = params;
-    
+
     // Get products suitable for the occasion
     let products = await this.getProductsForOccasion(occasion);
-    
+
     // Filter by size and color if specified
     products = this.filterBySize(products, size);
     products = this.filterByColor(products, color);
-    
+
     // Categorize products
     const categorized = this.categorizeProducts(products);
-    
+
     // Generate outfit combinations
     const combinations = this.generateOutfitCombinations(categorized);
-    
+
     // Convert to GeneratedOutfit format
     const outfits: GeneratedOutfit[] = combinations.map((combo, index) => {
       const totalCost = this.calculateTotalCost(combo);
       const isUnderBudget = totalCost <= budget;
-      
+
       return {
         name: this.generateOutfitName(combo, occasion, index),
         products: combo,
         totalCost,
         isUnderBudget,
-        swapSuggestions: !isUnderBudget ? 
-          this.findSwapSuggestions(combo, budget, products) : undefined
+        swapSuggestions: !isUnderBudget
+          ? this.findSwapSuggestions(combo, budget, products)
+          : undefined,
       };
     });
 
@@ -124,14 +152,14 @@ export class OutfitGenerator {
 
   private async getProductsForOccasion(occasion: string): Promise<Product[]> {
     const occasionTags: Record<string, string[]> = {
-      "workwear": ["work", "professional", "formal", "business"],
+      workwear: ["work", "professional", "formal", "business"],
       "summer picnic": ["summer", "casual", "outdoor", "comfortable"],
       "date night": ["romantic", "elegant", "stylish", "evening"],
       "casual weekend": ["casual", "comfortable", "relaxed", "weekend"],
       "formal event": ["formal", "elegant", "sophisticated", "dress-up"],
-      "travel": ["travel", "comfortable", "versatile", "practical"],
-      "gym": ["athletic", "activewear", "sporty", "fitness"],
-      "brunch": ["brunch", "casual", "chic", "daytime"]
+      travel: ["travel", "comfortable", "versatile", "practical"],
+      gym: ["athletic", "activewear", "sporty", "fitness"],
+      brunch: ["brunch", "casual", "chic", "daytime"],
     };
 
     const tags = occasionTags[occasion.toLowerCase()] || ["casual"];
@@ -144,10 +172,10 @@ export class OutfitGenerator {
       top: [],
       bottom: [],
       shoes: [],
-      accessories: []
+      accessories: [],
     };
 
-    products.forEach(product => {
+    products.forEach((product) => {
       if (categories[product.category]) {
         categories[product.category].push(product);
       }
@@ -158,23 +186,25 @@ export class OutfitGenerator {
 
   private filterBySize(products: Product[], size?: string): Product[] {
     if (!size) return products;
-    return products.filter(product => 
-      product.sizes && product.sizes.includes(size)
+    return products.filter(
+      (product) => product.sizes && product.sizes.includes(size)
     );
   }
 
   private filterByColor(products: Product[], color?: string): Product[] {
     if (!color) return products;
-    return products.filter(product => 
-      product.colors && product.colors.includes(color)
+    return products.filter(
+      (product) => product.colors && product.colors.includes(color)
     );
   }
 
-  private generateOutfitCombinations(categorized: Record<string, Product[]>): Product[][] {
+  private generateOutfitCombinations(
+    categorized: Record<string, Product[]>
+  ): Product[][] {
     const combinations: Product[][] = [];
-    
+
     // Generate dress-based outfits
-    categorized.dress.forEach(dress => {
+    categorized.dress.forEach((dress) => {
       const shoes = categorized.shoes[0];
       const accessories = categorized.accessories[0];
       if (shoes) {
@@ -185,8 +215,8 @@ export class OutfitGenerator {
     });
 
     // Generate top/bottom combinations
-    categorized.top.forEach(top => {
-      categorized.bottom.forEach(bottom => {
+    categorized.top.forEach((top) => {
+      categorized.bottom.forEach((bottom) => {
         const shoes = categorized.shoes[0];
         if (shoes) {
           const outfit = [top, bottom, shoes];
@@ -205,32 +235,33 @@ export class OutfitGenerator {
   }
 
   private findSwapSuggestions(
-    products: Product[], 
-    budget: number, 
+    products: Product[],
+    budget: number,
     allProducts: Product[]
   ): SwapSuggestion[] {
     const suggestions: SwapSuggestion[] = [];
     const totalCost = this.calculateTotalCost(products);
-    
+
     if (totalCost <= budget) return suggestions;
 
     // Find cheaper alternatives for each product
-    products.forEach(product => {
-      const alternatives = allProducts.filter(alt => 
-        alt.category === product.category && 
-        alt.price < product.price &&
-        alt.id !== product.id
+    products.forEach((product) => {
+      const alternatives = allProducts.filter(
+        (alt) =>
+          alt.category === product.category &&
+          alt.price < product.price &&
+          alt.id !== product.id
       );
 
       if (alternatives.length > 0) {
-        const cheapest = alternatives.reduce((min, alt) => 
+        const cheapest = alternatives.reduce((min, alt) =>
           alt.price < min.price ? alt : min
         );
-        
+
         suggestions.push({
           originalProduct: product,
           suggestedProduct: cheapest,
-          savings: product.price - cheapest.price
+          savings: product.price - cheapest.price,
         });
       }
     });
@@ -238,16 +269,24 @@ export class OutfitGenerator {
     return suggestions;
   }
 
-  private generateOutfitName(products: Product[], occasion: string, index: number): string {
+  private generateOutfitName(
+    products: Product[],
+    occasion: string,
+    index: number
+  ): string {
     const occasionNames: Record<string, string[]> = {
-      "workwear": ["Business Casual", "Professional Look", "Office Ready"],
+      workwear: ["Business Casual", "Professional Look", "Office Ready"],
       "summer picnic": ["Picnic Perfect", "Summer Breeze", "Casual Comfort"],
       "date night": ["Date Night Chic", "Romantic Evening", "Night Out"],
       "casual weekend": ["Weekend Vibes", "Casual Cool", "Relaxed Style"],
-      "formal event": ["Formal Elegance", "Black Tie Ready", "Sophisticated Style"],
-      "travel": ["Travel Ready", "Airport Chic", "Comfortable Journey"],
-      "gym": ["Workout Ready", "Athletic Style", "Fitness Focus"],
-      "brunch": ["Brunch Chic", "Sunday Style", "Casual Elegance"]
+      "formal event": [
+        "Formal Elegance",
+        "Black Tie Ready",
+        "Sophisticated Style",
+      ],
+      travel: ["Travel Ready", "Airport Chic", "Comfortable Journey"],
+      gym: ["Workout Ready", "Athletic Style", "Fitness Focus"],
+      brunch: ["Brunch Chic", "Sunday Style", "Casual Elegance"],
     };
 
     const names = occasionNames[occasion.toLowerCase()] || ["Stylish Outfit"];

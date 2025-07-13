@@ -4,7 +4,7 @@ A full-stack AI-powered outfit recommendation platform that helps Walmart shoppe
 
 ## Features
 
-- **AI-Powered Outfit Generation**: Uses OpenAI GPT-4o for intelligent outfit curation
+- **AI-Powered Outfit Generation**: Uses Google Gemini for intelligent outfit curation
 - **Virtual Try-On**: Real-time AI image generation using Replicate models
 - **Budget Optimization**: Smart product swapping to stay within budget
 - **Photo Upload**: Upload your own photo for personalized try-on
@@ -16,7 +16,7 @@ A full-stack AI-powered outfit recommendation platform that helps Walmart shoppe
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: Node.js + Express + TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **AI Services**: OpenAI GPT-4o + Replicate
+- **AI Services**: Google Gemini + Replicate
 - **UI**: Tailwind CSS + Radix UI + shadcn/ui
 - **State Management**: TanStack Query
 
@@ -57,7 +57,7 @@ PGPASSWORD=password
 PGDATABASE=database_name
 
 # AI Services
-OPENAI_API_KEY=sk-your-openai-api-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
 REPLICATE_API_TOKEN=r8_your-replicate-token-here
 
 # Application
@@ -67,11 +67,11 @@ PORT=5000
 
 ## API Keys Setup
 
-### OpenAI API Key
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create an account and add billing information
+### Google Gemini API Key
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Create a Google account if needed
 3. Generate a new API key
-4. Add it to your `.env` file as `OPENAI_API_KEY`
+4. Add it to your `.env` file as `GEMINI_API_KEY`
 
 ### Replicate API Token
 1. Go to [Replicate](https://replicate.com/account/api-tokens)
@@ -89,7 +89,7 @@ The application uses PostgreSQL with the following main tables:
 ## AI Integration
 
 ### Outfit Generation
-- Uses OpenAI GPT-4o to analyze user preferences
+- Uses Google Gemini to analyze user preferences
 - Generates contextually appropriate outfit combinations
 - Provides reasoning for each recommendation
 

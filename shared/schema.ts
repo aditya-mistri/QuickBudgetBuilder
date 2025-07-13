@@ -161,6 +161,12 @@ export const insertCartItemSchema = createInsertSchema(cart_items).omit({
   id: true,
   created_at: true,
 });
+
+// Client-side cart item schema (without user_id since server adds it)
+export const clientCartItemSchema = insertCartItemSchema.omit({
+  user_id: true,
+});
+
 export const insertUserPreferencesSchema = createInsertSchema(
   user_preferences
 ).omit({
@@ -177,6 +183,7 @@ export type Outfit = typeof outfits.$inferSelect;
 export type InsertOutfit = z.infer<typeof insertOutfitSchema>;
 export type CartItem = typeof cart_items.$inferSelect;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+export type ClientCartItem = z.infer<typeof clientCartItemSchema>;
 export type UserPreferences = typeof user_preferences.$inferSelect;
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 
@@ -220,6 +227,7 @@ export type OnboardingRequest = z.infer<typeof onboardingSchema>;
 export const generateOutfitRequestSchema = z.object({
   occasion: z.string().min(1),
   budget: z.number().min(50).max(500),
+  age: z.number().min(13).max(100).optional(), // Age for age-appropriate styling
   size: z.string().optional(),
   color: z.string().optional(),
   user_photo: z.string().optional(), // Base64 encoded image
@@ -237,6 +245,8 @@ export const outfitResponseSchema = z.object({
   is_under_budget: z.boolean(),
   tryon_image_url: z.string().optional(), // AI-generated try-on image
   reasoning: z.string().optional(),
+  age_appropriate: z.boolean().optional(), // Whether outfit suits the user's age
+  style_category: z.string().optional(), // classic, trendy, professional, casual, elegant
   swap_suggestions: z
     .array(
       z.object({

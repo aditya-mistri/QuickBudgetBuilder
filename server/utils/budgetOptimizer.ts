@@ -1,6 +1,6 @@
 import { Product } from "@shared/schema";
 import { storage } from "../storage";
-import { openaiService } from "./openaiService";
+import { geminiService } from "./geminiService";
 
 export interface BudgetOptimization {
   optimizedProducts: Product[];
@@ -15,24 +15,24 @@ export interface BudgetOptimization {
 
 export class BudgetOptimizer {
   async optimizeForBudget(
-    products: Product[], 
+    products: Product[],
     budget: number
   ): Promise<BudgetOptimization> {
     const currentCost = products.reduce((sum, p) => sum + p.price, 0);
-    
+
     if (currentCost <= budget) {
       return {
         optimizedProducts: products,
         totalCost: currentCost,
         savings: 0,
-        swapsMade: []
+        swapsMade: [],
       };
     }
 
     try {
-      // Use OpenAI for intelligent budget optimization
+      // Use Gemini for intelligent budget optimization
       const allProducts = await storage.getAllProducts();
-      const optimization = await openaiService.optimizeOutfitForBudget(
+      const optimization = await geminiService.optimizeOutfitForBudget(
         products,
         budget,
         allProducts
@@ -42,48 +42,65 @@ export class BudgetOptimizer {
         optimizedProducts: optimization.optimizedProducts,
         totalCost: optimization.totalCost,
         savings: optimization.savings,
-        swapsMade: optimization.swapsMade
+        swapsMade: optimization.swapsMade.map((swap) => ({
+          original: swap.original,
+          replacement: swap.replacement,
+          savings: swap.savings,
+        })),
       };
     } catch (error) {
-      console.error("AI budget optimization failed, falling back to rule-based:", error);
-      
+      console.error(
+        "Gemini budget optimization failed, falling back to rule-based:",
+        error
+      );
+
       // Fallback to rule-based optimization
       return this.optimizeForBudgetFallback(products, budget);
     }
   }
 
   private async optimizeForBudgetFallback(
-    products: Product[], 
+    products: Product[],
     budget: number
   ): Promise<BudgetOptimization> {
     const currentCost = products.reduce((sum, p) => sum + p.price, 0);
-    
+
     // Get all available products for alternatives
     const allProducts = await storage.getAllProducts();
-    const swapsMade: Array<{ original: Product; replacement: Product; savings: number }> = [];
+    const swapsMade: Array<{
+      original: Product;
+      replacement: Product;
+      savings: number;
+    }> = [];
     let optimizedProducts = [...products];
 
     // Find cheaper alternatives for each product
     for (let i = 0; i < optimizedProducts.length; i++) {
       const product = optimizedProducts[i];
-      const alternatives = await this.findBudgetAlternatives(product, allProducts);
-      
+      const alternatives = await this.findBudgetAlternatives(
+        product,
+        allProducts
+      );
+
       if (alternatives.length > 0) {
-        const bestAlternative = alternatives.reduce((best, alt) => 
+        const bestAlternative = alternatives.reduce((best, alt) =>
           alt.price < best.price ? alt : best
         );
-        
+
         const savings = product.price - bestAlternative.price;
         if (savings > 0) {
           swapsMade.push({
             original: product,
             replacement: bestAlternative,
-            savings
+            savings,
           });
           optimizedProducts[i] = bestAlternative;
-          
+
           // Check if we're now within budget
-          const newCost = optimizedProducts.reduce((sum, p) => sum + p.price, 0);
+          const newCost = optimizedProducts.reduce(
+            (sum, p) => sum + p.price,
+            0
+          );
           if (newCost <= budget) {
             break;
           }
@@ -98,18 +115,19 @@ export class BudgetOptimizer {
       optimizedProducts,
       totalCost: finalCost,
       savings: totalSavings,
-      swapsMade
+      swapsMade,
     };
   }
 
   async findBudgetAlternatives(
-    product: Product, 
+    product: Product,
     allProducts: Product[]
   ): Promise<Product[]> {
-    return allProducts.filter(alt => 
-      alt.category === product.category &&
-      alt.price < product.price &&
-      alt.id !== product.id
+    return allProducts.filter(
+      (alt) =>
+        alt.category === product.category &&
+        alt.price < product.price &&
+        alt.id !== product.id
     );
   }
 
@@ -118,7 +136,10 @@ export class BudgetOptimizer {
     return Math.min((totalCost / budget) * 100, 100);
   }
 
-  getBudgetStatus(products: Product[], budget: number): {
+  getBudgetStatus(
+    products: Product[],
+    budget: number
+  ): {
     isWithinBudget: boolean;
     totalCost: number;
     remaining: number;
@@ -126,13 +147,16 @@ export class BudgetOptimizer {
   } {
     const totalCost = products.reduce((sum, p) => sum + p.price, 0);
     const remaining = budget - totalCost;
-    const utilizationPercent = this.calculateBudgetUtilization(products, budget);
+    const utilizationPercent = this.calculateBudgetUtilization(
+      products,
+      budget
+    );
 
     return {
       isWithinBudget: totalCost <= budget,
       totalCost,
       remaining,
-      utilizationPercent
+      utilizationPercent,
     };
   }
 }
