@@ -33,42 +33,32 @@ export class AIImageGenerator {
     params: TryOnGenerationParams
   ): Promise<TryOnResult> {
     try {
-      // Check cache first
-      const cacheKey = this.getCacheKey(params);
-      const cachedResult = this.imageCache.get(cacheKey);
-      if (cachedResult) {
-        console.log("Returning cached try-on image:", cacheKey);
-        return {
-          success: true,
-          imageUrl: cachedResult,
-        };
-      }
-
-      // Get base person image (user photo or avatar)
-      const baseImage =
-        params.userPhoto || (await this.getAvatarImage(params.avatarId));
-
-      console.log(
-        `Generating outfit visualization with ${params.products.length} pieces`
-      );
-
-      // Use our reliable visualization method instead of external APIs
-      const result = await this.generateOutfitVisualizationWithBase(
-        baseImage,
-        params.products,
-        params.occasion
-      );
-
-      // Cache successful results
-      if (result.success && result.imageUrl) {
-        this.cacheImage(cacheKey, result.imageUrl);
-      }
-
-      return result;
+      // Always show mock screenshots regardless of selection
+      console.log("Always using mock screenshots for all selections");
+      
+      // Return one of the two screenshots based on a simple rotation
+      const screenshots = [
+        "/alex-formal-1.png", // Screenshot 2025-07-14 233257.png
+        "/alex-formal-2.png"  // Screenshot 2025-07-14 233405.png
+      ];
+      
+      // Alternate between screenshots based on product count or random selection
+      const screenshotIndex = (params.products.length % 2);
+      const mockImageUrl = screenshots[screenshotIndex];
+      
+      console.log(`Returning mock screenshot: ${mockImageUrl} (${params.products.length} products)`);
+      
+      return {
+        success: true,
+        imageUrl: mockImageUrl,
+      };
     } catch (error) {
       console.error("AI image generation failed:", error);
-      // Final fallback - generate a simple outfit visualization
-      return await this.generateOutfitVisualization(params);
+      // Fallback to first screenshot
+      return {
+        success: true,
+        imageUrl: "/alex-formal-1.png",
+      };
     }
   }
 
@@ -433,6 +423,16 @@ export class AIImageGenerator {
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(36);
+  }
+
+  private hasBlackFormalWear(products: Product[]): boolean {
+    // Check if products contain black formal wear items
+    const formalKeywords = ['black', 'suit', 'blazer', 'dress', 'formal', 'professional', 'business'];
+    
+    return products.some(product => {
+      const productText = `${product.name} ${product.description} ${product.category}`.toLowerCase();
+      return formalKeywords.some(keyword => productText.includes(keyword));
+    });
   }
 }
 

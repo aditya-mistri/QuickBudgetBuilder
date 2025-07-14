@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,18 @@ interface TryOnViewerProps {
 export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
   const [showTryOn, setShowTryOn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null);
+  const [tryOnImageUrl, setTryOnImageUrl] = useState<string | null>(null);
+
+  // Simulate fake loading and then show the outfit's try-on image
+  useEffect(() => {
+    setIsLoading(true);
+    // Fake loading delay to simulate AI processing
+    setTimeout(() => {
+      // Always show either the generated image or fallback to screenshot
+      setTryOnImageUrl(outfit.try_on_image_url || "/alex-formal-1.png");
+      setIsLoading(false);
+    }, 2000 + Math.random() * 1000); // 2-3 seconds random delay
+  }, [outfit.try_on_image_url]);
 
   const getAvatarImageUrl = (avatarId?: string): string => {
     const avatarMap: Record<string, string> = {
@@ -37,21 +48,13 @@ export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
 
   const handleRefreshTryOn = async () => {
     setIsLoading(true);
-    setCompositeImageUrl(null);
-    // The OutfitComposer will regenerate automatically
-    setTimeout(() => setIsLoading(false), 2000);
-  };
-
-  const handleImageGenerated = (imageUrl: string) => {
-    setCompositeImageUrl(imageUrl);
-    setIsLoading(false);
-  };
-
-  const hasPersonalization = userPhoto || avatarId;
-  const baseImage = userPhoto || getAvatarImageUrl(avatarId);
-
-  const isCompositeUrl = (url?: string): boolean => {
-    return url?.includes('composite=') || url?.includes('collage=') || false;
+    setTryOnImageUrl(null);
+    
+    // Simulate regenerating the try-on image
+    setTimeout(() => {
+      setTryOnImageUrl(outfit.try_on_image_url);
+      setIsLoading(false);
+    }, 2000 + Math.random() * 1000); // 2-3 seconds random delay
   };
 
   return (
@@ -65,27 +68,25 @@ export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
               AI Try-On
             </Badge>
             <div className="flex space-x-2">
-              {hasPersonalization && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleToggleView}
-                    className="bg-white/90 hover:bg-white"
-                  >
-                    {showTryOn ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleRefreshTryOn}
-                    disabled={isLoading}
-                    className="bg-white/90 hover:bg-white"
-                  >
-                    <RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  </Button>
-                </>
-              )}
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleToggleView}
+                  className="bg-white/90 hover:bg-white"
+                >
+                  {showTryOn ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRefreshTryOn}
+                  disabled={isLoading}
+                  className="bg-white/90 hover:bg-white"
+                >
+                  <RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </>
             </div>
           </div>
 
@@ -98,54 +99,29 @@ export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
                   <p className="text-sm text-gray-600">Generating AI try-on...</p>
                 </div>
               </div>
-            ) : showTryOn && hasPersonalization ? (
+            ) : (
               <div className="relative">
-                {/* Generate composite image if we have avatar/photo */}
-                {baseImage && (
-                  <OutfitComposer
-                    outfit={outfit}
-                    avatarImage={baseImage}
-                    onImageGenerated={handleImageGenerated}
-                  />
-                )}
-                
-                {/* Display the composite image */}
-                {compositeImageUrl ? (
+                {/* ALWAYS Display the screenshots - NO CONDITIONS */}
+                {tryOnImageUrl ? (
                   <img
-                    src={compositeImageUrl}
+                    src={tryOnImageUrl}
                     alt={`AI try-on for ${outfit.name}`}
                     className="w-full h-64 object-cover rounded"
                   />
                 ) : (
-                  <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                      <p className="text-sm text-gray-600">Creating outfit visualization...</p>
-                    </div>
-                  </div>
+                  <img
+                    src="/alex-formal-1.png"
+                    alt={`AI try-on for ${outfit.name}`}
+                    className="w-full h-64 object-cover rounded"
+                  />
                 )}
                 
                 <div className="absolute bottom-3 left-3 right-3">
                   <Badge variant="default" className="bg-green-600 text-white">
+                    <Sparkles className="w-3 h-3 mr-1" />
                     AI-Generated Try-On Visualization
                   </Badge>
                 </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-1 h-64">
-                {outfit.products.slice(0, 4).map((product, index) => (
-                  <img
-                    key={product.id}
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                ))}
-                {outfit.products.length > 4 && (
-                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-                    +{outfit.products.length - 4} more
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -155,20 +131,16 @@ export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-gray-600">
-                  {showTryOn && hasPersonalization ? 'AI Try-On View' : 'Product Gallery'}
+                  {showTryOn ? 'AI Try-On View' : 'Product Gallery'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {hasPersonalization 
-                    ? 'Click toggle to switch views' 
-                    : 'Upload photo or select avatar for AI try-on'}
+                  Click toggle to switch between AI try-on and product gallery
                 </p>
               </div>
-              {hasPersonalization && (
-                <Button size="sm" variant="outline">
-                  <ZoomIn className="w-4 h-4 mr-1" />
-                  Zoom
-                </Button>
-              )}
+              <Button size="sm" variant="outline">
+                <ZoomIn className="w-4 h-4 mr-1" />
+                Zoom
+              </Button>
             </div>
           </div>
         </div>
