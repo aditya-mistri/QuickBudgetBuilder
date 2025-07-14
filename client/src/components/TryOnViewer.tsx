@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Eye, EyeOff, RotateCcw, ZoomIn, Sparkles } from "lucide-react";
 import { type OutfitResponse } from "@shared/schema";
+import { OutfitComposer } from "./OutfitComposer";
 
 interface TryOnViewerProps {
   outfit: OutfitResponse;
@@ -14,6 +15,21 @@ interface TryOnViewerProps {
 export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
   const [showTryOn, setShowTryOn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [compositeImageUrl, setCompositeImageUrl] = useState<string | null>(null);
+
+  const getAvatarImageUrl = (avatarId?: string): string => {
+    const avatarMap: Record<string, string> = {
+      avatar_1: "https://images.unsplash.com/photo-1494790108755-2616b612b639?w=400&h=600&fit=crop&crop=face",
+      avatar_2: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop&crop=face",
+      avatar_3: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=face",
+      avatar_4: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=600&fit=crop&crop=face",
+      avatar_5: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=600&fit=crop&crop=face",
+      avatar_6: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop&crop=face",
+      avatar_7: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400&h=600&fit=crop&crop=face",
+      avatar_8: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop&crop=face",
+    };
+    return avatarMap[avatarId || "avatar_1"] || avatarMap["avatar_1"];
+  };
 
   const handleToggleView = () => {
     setShowTryOn(!showTryOn);
@@ -21,12 +37,22 @@ export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
 
   const handleRefreshTryOn = async () => {
     setIsLoading(true);
-    // Simulate AI regeneration
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    setCompositeImageUrl(null);
+    // The OutfitComposer will regenerate automatically
+    setTimeout(() => setIsLoading(false), 2000);
+  };
+
+  const handleImageGenerated = (imageUrl: string) => {
+    setCompositeImageUrl(imageUrl);
     setIsLoading(false);
   };
 
   const hasPersonalization = userPhoto || avatarId;
+  const baseImage = userPhoto || getAvatarImageUrl(avatarId);
+
+  const isCompositeUrl = (url?: string): boolean => {
+    return url?.includes('composite=') || url?.includes('collage=') || false;
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -74,14 +100,34 @@ export function TryOnViewer({ outfit, userPhoto, avatarId }: TryOnViewerProps) {
               </div>
             ) : showTryOn && hasPersonalization ? (
               <div className="relative">
-                <img
-                  src={outfit.tryon_image_url || outfit.products[0]?.image_url}
-                  alt={`AI try-on for ${outfit.name}`}
-                  className="w-full h-64 object-cover"
-                />
+                {/* Generate composite image if we have avatar/photo */}
+                {baseImage && (
+                  <OutfitComposer
+                    outfit={outfit}
+                    avatarImage={baseImage}
+                    onImageGenerated={handleImageGenerated}
+                  />
+                )}
+                
+                {/* Display the composite image */}
+                {compositeImageUrl ? (
+                  <img
+                    src={compositeImageUrl}
+                    alt={`AI try-on for ${outfit.name}`}
+                    className="w-full h-64 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                      <p className="text-sm text-gray-600">Creating outfit visualization...</p>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="absolute bottom-3 left-3 right-3">
                   <Badge variant="default" className="bg-green-600 text-white">
-                    AI-Generated Try-On
+                    AI-Generated Try-On Visualization
                   </Badge>
                 </div>
               </div>

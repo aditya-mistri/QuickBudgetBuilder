@@ -6,18 +6,24 @@
 interface RequiredEnvVars {
   DATABASE_URL: string;
   GEMINI_API_KEY: string;
-  REPLICATE_API_TOKEN: string;
   NODE_ENV: string;
   PORT: string;
+}
+
+interface OptionalEnvVars {
+  REPLICATE_API_TOKEN?: string;
 }
 
 export function validateEnvironment(): void {
   const requiredVars: (keyof RequiredEnvVars)[] = [
     "DATABASE_URL",
     "GEMINI_API_KEY",
-    "REPLICATE_API_TOKEN",
     "NODE_ENV",
     "PORT",
+  ];
+
+  const optionalVars: (keyof OptionalEnvVars)[] = [
+    "REPLICATE_API_TOKEN",
   ];
 
   const missing: string[] = [];
@@ -26,6 +32,13 @@ export function validateEnvironment(): void {
   for (const varName of requiredVars) {
     if (!process.env[varName]) {
       missing.push(varName);
+    }
+  }
+
+  // Check optional variables and warn if missing
+  for (const varName of optionalVars) {
+    if (!process.env[varName]) {
+      warnings.push(`${varName} not found - AI image generation features will use fallback visualizations`);
     }
   }
 
